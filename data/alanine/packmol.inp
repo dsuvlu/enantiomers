@@ -1,0 +1,21 @@
+#
+# alanine in water box
+#
+
+tolerance 2.0
+filetype pdb
+output r_alanine_water.pdb
+add_box_sides 1.0
+
+structure r_alanine.pdb
+  number 1 
+  connect yes
+  fixed 20. 20. 20. 0. 0. 0.
+  centerofmass
+end structure
+
+structure ../opc.pdb
+  number 2100
+  inside cube 0. 0. 0. 40.
+  resnumbers 2
+end structure

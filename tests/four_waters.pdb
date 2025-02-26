@@ -1,0 +1,23 @@
+HEADER 
+TITLE     Built with Packmol                                             
+REMARK   Packmol generated pdb file 
+REMARK   Home-Page: http://m3g.iqm.unicamp.br/packmol
+REMARK
+CRYST1    40.81    20.24    40.02  90.00  90.00  90.00 P 1           1
+HETATM    1  O   HOH A   1      19.204  19.212  15.635  1.00  0.00           O  
+HETATM    2  H1  HOH A   1      20.015  19.384  15.906  1.00  0.00           H  
+HETATM    3  H2  HOH A   1      18.724  19.288  16.360  1.00  0.00           H  
+HETATM    4  M   HOH A   1      19.253  19.248  15.782  1.00  0.00              
+HETATM    5  O   HOH A   2      24.073  29.688  15.436  1.00  0.00           O  
+HETATM    6  H1  HOH A   2      24.269  30.170  14.736  1.00  0.00           H  
+HETATM    7  H2  HOH A   2      23.467  29.134  15.142  1.00  0.00           H  
+HETATM    8  M   HOH A   2      24.013  29.677  15.289  1.00  0.00              
+HETATM    9  O   HOH A   3      31.850  21.860  34.399  1.00  0.00           O  
+HETATM   10  H1  HOH A   3      31.122  21.637  33.973  1.00  0.00           H  
+HETATM   11  H2  HOH A   3      32.298  21.113  34.449  1.00  0.00           H  
+HETATM   12  M   HOH A   3      31.809  21.717  34.344  1.00  0.00              
+HETATM   13  O   HOH A   4      17.102  19.934  34.872  1.00  0.00           O  
+HETATM   14  H1  HOH A   4      17.497  20.495  34.333  1.00  0.00           H  
+HETATM   15  H2  HOH A   4      16.751  19.343  34.334  1.00  0.00           H  
+HETATM   16  M   HOH A   4      17.108  19.930  34.713  1.00  0.00              
+END

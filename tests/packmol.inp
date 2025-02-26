@@ -1,0 +1,14 @@
+#
+# water box
+#
+
+tolerance 2.0
+filetype pdb
+output four_waters.pdb
+add_box_sides 1.0
+
+structure opc.pdb
+  number 4
+  inside cube 0. 0. 0. 40.
+  resnumbers 2
+end structure
