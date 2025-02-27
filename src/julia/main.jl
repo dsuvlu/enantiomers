@@ -539,9 +539,6 @@ function shift_position!(pos, location, i)
     return pos
 end
 
-using LinearAlgebra
-
-
 function find_rotation(v, w)
     # Normalize the input vectors.
     a = v / norm(v)
@@ -601,3 +598,35 @@ function rotate_to_target!(pos, center, target, i)
     return pos
 end
 
+function shift_and_rotate!(trajectory, shift, center, target)
+
+    # grab frame, number of atoms
+    f = 0
+    frame = read_step(trajectory, f)
+
+    # select all water oxygens
+    sel_oxy = Selection("name O")
+    oxy = Int.(evaluate(sel_oxy, frame))
+
+    # grab current positions
+    pos = positions(frame)
+
+    shift_position!(pos, center, oxy[1]+1)
+    shift_position!(pos, center.+shift[:,1], oxy[2]+1)
+    shift_position!(pos, center.+shift[:,2], oxy[3]+1)
+    shift_position!(pos, center.+shift[:,3], oxy[4]+1)
+
+    Trajectory("shifted.pdb", 'w') do traj
+        write(traj, frame)
+    end
+
+    rotate_to_target!(pos, center, target[:,1], oxy[1]+1)
+    rotate_to_target!(pos, center.+shift[:,1], target[:,2], oxy[2]+1)
+    rotate_to_target!(pos, center.+shift[:,2], target[:,3], oxy[3]+1)
+    rotate_to_target!(pos, center.+shift[:,3], target[:,4], oxy[4]+1)
+
+    Trajectory("rotated.pdb", 'w') do traj
+        write(traj, frame)
+    end
+
+end

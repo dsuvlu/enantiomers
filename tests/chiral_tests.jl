@@ -21,13 +21,10 @@ v3 = 0.0 * e1 + 0.0 * e2 + 1.0 * e3
 
 V = v1 ∧ v2 ∧ v3
 
-
-traj_name = "minimized.pdb"
+directory = "/home/dsuvlu/git/enantiomers/tests/chi_-1/"
+traj_name = "minimized_chi_-1.pdb"
 trajfile = joinpath(directory, traj_name)
-#pdbfile = joinpath(directory, pdb_name)
 trajectory = Trajectory(trajfile)
-#set_topology!(trajectory, pdbfile)
-n_frames = Int(length(trajectory))
 
 # grab frame, number of atoms
 f = 0

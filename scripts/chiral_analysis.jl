@@ -103,7 +103,7 @@ for f in 0:n_frames-1
         min_dist = Dict{Int, Vector{Float64}}()
     end
 
-    # find neighbors withing dOO distance
+    # find neighbors within dOO distance
     nhbs = Dict{Int, Vector{Neighbors}}()
     @time find_neighbors!(nhbs, oxy, pos_static, params, ucell)
 

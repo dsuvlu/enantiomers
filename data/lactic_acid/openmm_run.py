@@ -51,11 +51,11 @@ barostatInterval = 25
 
 # Simulation Options
 
-steps = 5000000
+steps = 500000000
 equilibrationSteps = 100000
 platform = Platform.getPlatformByName('CUDA')
-platformProperties = {'DeviceIndex':'2', 'Precision': 'mixed'}
-dcdReporter = DCDReporter('s_trajectory.dcd', 500)
+platformProperties = {'DeviceIndex':'3', 'Precision': 'mixed'}
+dcdReporter = DCDReporter('s_trajectory_1000ns.dcd', 500)
 #pdbReporter = PDBReporter('s_trajectory.pdb', 500)
 dataReporter = StateDataReporter('s_log.txt', 1000, totalSteps=steps,
     step=True, speed=True, progress=True, potentialEnergy=True, temperature=True, separator='\t')
