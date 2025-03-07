@@ -28,6 +28,14 @@ mutable struct Hist2D
     bins2::Vector{Float64}
 end
 
+mutable struct Trivectors
+    p1::Union{Float64, Vector{Float64}}
+    p2::Union{Float64, Vector{Float64}}
+    p3::Union{Float64, Vector{Float64}}
+    p4::Union{Float64, Vector{Float64}}
+    all::Union{Float64, Vector{Float64}}
+end
+
 struct Neighbors 
     index::Int
     dist::Float64
@@ -35,26 +43,41 @@ end
 
 struct HBond
     donor::Int
-    acceptor::Int
     hydrogen::Int
+    acceptor::Int
     angle::Float64
     dist::Float64
 end
 
-const hbond_list = Vector{Union{HBond, Float64}}
 mutable struct Chains
-    p1::Dict{Int, Vector{hbond_list}}
-    p2::Dict{Int, Vector{hbond_list}}
-    p3::Dict{Int, Vector{hbond_list}}
-    p4::Dict{Int, Vector{hbond_list}}
+    o1::Int
+    o2::Int
+    o3::Int
+    o4::Int
+    dist::Float64
+    solute::Int
+    trivec::Float64
 end
 
+mutable struct Dist 
+    dist::Float64
+    sol::Int
+end
 
-mutable struct Trivecs
-    p1::Dict{Int, Vector{Float64}}
-    p2::Dict{Int, Vector{Float64}}
-    p3::Dict{Int, Vector{Float64}}
-    p4::Dict{Int, Vector{Float64}}
+const chain_list = Union{Vector{HBond}, Chains}
+mutable struct ChainList
+    p1::Dict{Int, Vector{chain_list}}
+    p2::Dict{Int, Vector{chain_list}}
+    p3::Dict{Int, Vector{chain_list}}
+    p4::Dict{Int, Vector{chain_list}}
+end
+
+const trivec_list = Union{Float64, Vector{Float64}}
+mutable struct TrivecList
+    p1::Dict{Int, trivec_list}
+    p2::Dict{Int, trivec_list}
+    p3::Dict{Int, trivec_list}
+    p4::Dict{Int, trivec_list}
 end
 
 function parse_command_line()
@@ -79,7 +102,7 @@ function parse_command_line()
             required = true
         "--solute"
             help = "Solute atoms"
-            arg_type = String
+            arg_type = Bool
             required = true
     end
 
@@ -92,11 +115,13 @@ function initialize_dictionaries(oxy)
     
     donors = Dict{Int, Vector{HBond}}()
     
-    chains = Chains(Dict{Int, Vector{HBond}}(), Dict{Int, Vector{HBond}}(),
+    chains = ChainList(Dict{Int, Vector{HBond}}(), Dict{Int, Vector{HBond}}(),
         Dict{Int, Vector{HBond}}(), Dict{Int, Vector{HBond}}())
     
-    trivecs = Trivecs(Dict{Int, Vector{Float64}}(), Dict{Int, Vector{Float64}}(),
+    trivecs = TrivecList(Dict{Int, Vector{Float64}}(), Dict{Int, Vector{Float64}}(),
         Dict{Int, Vector{Float64}}(), Dict{Int, Vector{Float64}}())
+
+    min_dist = Dict{Int, Dist}()
     
     for o in oxy
         
@@ -110,14 +135,15 @@ function initialize_dictionaries(oxy)
         trivecs.p2[o] = Vector{Float64}()
         trivecs.p3[o] = Vector{Float64}()
         trivecs.p4[o] = Vector{Float64}()
+        min_dist[o] = Dist(0.0, 0)
         
     end
 
-    return nhbs, donors, chains, trivecs
+    return nhbs, donors, chains, trivecs, min_dist
 
 end
 
-function clear_values!(oxy, nhbs, donors, chains, trivecs)
+function clear_values!(oxy, nhbs, donors, chains, trivecs, min_dist)
 
     for o in oxy
         
@@ -131,6 +157,7 @@ function clear_values!(oxy, nhbs, donors, chains, trivecs)
         trivecs.p2[o] = Vector{Float64}()
         trivecs.p3[o] = Vector{Float64}()
         trivecs.p4[o] = Vector{Float64}()
+        min_dist[o] = Dist(0.0, 0)
         
     end
 
@@ -138,7 +165,7 @@ end
 
 function initialize_histograms(params, solute_flag)
 
-    if solute_flag == "no"
+    if !solute_flag
 
         tbins = collect(-1:params.delta_tbins:1)
         n_tbins = length(tbins) - 1
@@ -146,16 +173,27 @@ function initialize_histograms(params, solute_flag)
         cbins = collect(0:1:20)
         n_cbins = length(cbins) - 1
 
-        trivec_hist = Hist1D(zeros(n_tbins), zeros(n_tbins), zeros(n_tbins),
+        trivec_hist_total = Hist1D(zeros(n_tbins), 
+            zeros(n_tbins), zeros(n_tbins),
             zeros(n_tbins), zeros(n_tbins), tbins, tbins)
 
-        mean_trivec_hist = Hist1D(zeros(n_tbins), zeros(n_tbins), zeros(n_tbins),
+        trivec_hist_frame = Hist1D(zeros(n_tbins), 
+            zeros(n_tbins), zeros(n_tbins),
             zeros(n_tbins), zeros(n_tbins), tbins, tbins)
 
-        chain_hist = Hist1D(zeros(n_cbins), zeros(n_cbins), zeros(n_cbins),
+        mean_trivec_hist_total = Hist1D(zeros(n_tbins), 
+            zeros(n_tbins), zeros(n_tbins),
+            zeros(n_tbins), zeros(n_tbins), tbins, tbins)
+
+        mean_trivec_hist_frame = Hist1D(zeros(n_tbins), 
+            zeros(n_tbins), zeros(n_tbins),
+            zeros(n_tbins), zeros(n_tbins), tbins, tbins)
+
+        chain_hist = Hist1D(zeros(n_cbins), 
+            zeros(n_cbins), zeros(n_cbins),
             zeros(n_cbins), zeros(n_cbins), cbins, cbins)
 
-    elseif solute_flag == "yes"
+    elseif solute_flag
 
         tbins = collect(-1:params.delta_tbins:1)
         n_tbins = length(tbins) - 1
@@ -166,18 +204,57 @@ function initialize_histograms(params, solute_flag)
         cbins = collect(0:1:20)
         n_cbins = length(cbins) - 1
 
-        trivec_hist = Hist2D(zeros((n_tbins, n_dbins)), zeros((n_tbins, n_dbins)), zeros((n_tbins, n_dbins)),
-            zeros((n_tbins, n_dbins)), zeros((n_tbins, n_dbins)), tbins, dbins)
-            
-        mean_trivec_hist = Hist2D(zeros((n_tbins, n_dbins)), zeros((n_tbins, n_dbins)), zeros((n_tbins, n_dbins)),
+        trivec_hist_total = Hist2D(zeros((n_tbins, n_dbins)), 
+            zeros((n_tbins, n_dbins)), zeros((n_tbins, n_dbins)),
             zeros((n_tbins, n_dbins)), zeros((n_tbins, n_dbins)), tbins, dbins)
 
-        chain_hist = Hist2D(zeros((n_cbins, n_dbins)), zeros((n_cbins, n_dbins)), zeros((n_cbins, n_dbins)),
+        trivec_hist_frame = Hist2D(zeros((n_tbins, n_dbins)), 
+            zeros((n_tbins, n_dbins)), zeros((n_tbins, n_dbins)),
+            zeros((n_tbins, n_dbins)), zeros((n_tbins, n_dbins)), tbins, dbins)
+            
+        mean_trivec_hist_total = Hist2D(zeros((n_tbins, n_dbins)), 
+            zeros((n_tbins, n_dbins)), zeros((n_tbins, n_dbins)),
+            zeros((n_tbins, n_dbins)), zeros((n_tbins, n_dbins)), tbins, dbins)
+        
+        mean_trivec_hist_frame = Hist2D(zeros((n_tbins, n_dbins)), 
+            zeros((n_tbins, n_dbins)), zeros((n_tbins, n_dbins)),
+            zeros((n_tbins, n_dbins)), zeros((n_tbins, n_dbins)), tbins, dbins)
+
+        chain_hist = Hist2D(zeros((n_cbins, n_dbins)), 
+            zeros((n_cbins, n_dbins)), zeros((n_cbins, n_dbins)),
             zeros((n_cbins, n_dbins)), zeros((n_cbins, n_dbins)), cbins, dbins)
 
     end
 
-    return trivec_hist, mean_trivec_hist, chain_hist
+    return trivec_hist_total, trivec_hist_frame,
+        mean_trivec_hist_total, mean_trivec_hist_frame, chain_hist
+
+end
+
+function initialize_statistics(params, solute_flag)
+
+    if !solute_flag
+    
+        trivec_sum_frame = Trivectors(0.0, 0.0, 0.0, 0.0, 0.0)
+        trivec_sum_total = Trivectors(0.0, 0.0, 0.0, 0.0, 0.0)
+
+        mean_trivec_sum_frame = Trivectors(0.0, 0.0, 0.0, 0.0, 0.0)
+        mean_trivec_sum_total = Trivectors(0.0, 0.0, 0.0, 0.0, 0.0)
+    
+    elseif solute_flag
+    
+        dbins = collect(0.0:params.delta_dbins:35.0)
+        n_dbins = length(dbins) - 1
+    
+        trivec_sum_frame = Trivectors(zeros(n_dbins), zeros(n_dbins), zeros(n_dbins), zeros(n_dbins), zeros(n_dbins))
+        trivec_sum_total = Trivectors(zeros(n_dbins), zeros(n_dbins), zeros(n_dbins), zeros(n_dbins), zeros(n_dbins))
+
+        mean_trivec_sum_frame = Trivectors(zeros(n_dbins), zeros(n_dbins), zeros(n_dbins), zeros(n_dbins), zeros(n_dbins))
+        mean_trivec_sum_total = Trivectors(zeros(n_dbins), zeros(n_dbins), zeros(n_dbins), zeros(n_dbins), zeros(n_dbins))
+
+    end
+
+    return trivec_sum_frame, trivec_sum_total, mean_trivec_sum_frame, mean_trivec_sum_total
 
 end
 
@@ -215,18 +292,16 @@ function compute_distance(pos_i, pos_j, ucell)
     return norm(rij)
 end
 
-function minimum_distance(pos, ucell, oxy, solute)
-    min_dist = Dict{Int, Vector{Float64}}()
+function minimum_distance!(min_dist, pos, ucell, oxy, solute, sol_dist)
+    
     for i in oxy
         for j in solute
-            dist = compute_distance(pos[i+1], pos[j+1], ucell)
-            if haskey(min_dist, i)
-                push!(min_dist[i], dist)
-            else
-                min_dist[i] = [dist]
-            end
+
+            sol_dist[j] = compute_distance(pos[i+1], pos[j+1], ucell)
+            
         end
-        min_dist[i] = [minimum(min_dist[i])]
+        min_pair = findmin(sol_dist)
+        min_dist[i] = Dist(min_pair[1], min_pair[2])
     end
     return min_dist
 end
@@ -316,11 +391,11 @@ function find_donors!(donors, nhbs, n_o, oxy, frame, params)
 
                 if angle1 < params.angle
                     
-                    push!(donors[o_i], HBond(o_i, o_j, h1_i, angle1, dist))
+                    push!(donors[o_i], HBond(o_i, h1_i, o_j, angle1, dist))
                     
                 elseif angle2 < params.angle
                     
-                    push!(donors[o_i], HBond(o_i, o_j, h2_i, angle2, dist))
+                    push!(donors[o_i], HBond(o_i, h2_i, o_j, angle2, dist))
                     
                 end
             end
@@ -456,7 +531,7 @@ function trivector(chain, pos, params)
     return trivector[bitidx]
 end
 
-function trivector_static(chain, pos, params)
+function trivector_static(chain, pos, params, e1, e2, e3)
     h1 = chain[1].hydrogen
     h2 = chain[2].hydrogen
     h3 = chain[3].hydrogen
@@ -478,13 +553,13 @@ function trivector_static(chain, pos, params)
     return trivector[bitidx]
 end
 
-function compute_trivectors!(pos, params, chains, trivecs)
+function compute_trivectors!(pos, params, chains, trivecs, e1, e2, e3)
 
     for (p1, p1chains) in chains.p1
 
         for chain in p1chains
 
-            trivec = trivector_static(chain, pos, params)
+            trivec = trivector_static(chain, pos, params, e1, e2, e3)
             push!(trivecs.p1[p1], trivec)
 
         end
@@ -495,7 +570,7 @@ function compute_trivectors!(pos, params, chains, trivecs)
 
         for chain in p2chains
 
-            trivec = trivector_static(chain, pos, params)
+            trivec = trivector_static(chain, pos, params, e1, e2, e3)
             push!(trivecs.p2[p2], trivec)
 
         end
@@ -506,7 +581,7 @@ function compute_trivectors!(pos, params, chains, trivecs)
 
         for chain in p3chains
 
-            trivec = trivector_static(chain, pos, params)
+            trivec = trivector_static(chain, pos, params, e1, e2, e3)
             push!(trivecs.p3[p3], trivec)
 
         end
@@ -517,7 +592,7 @@ function compute_trivectors!(pos, params, chains, trivecs)
 
         for chain in p4chains
 
-            trivec = trivector_static(chain, pos, params)
+            trivec = trivector_static(chain, pos, params, e1, e2, e3)
             push!(trivecs.p4[p4], trivec)
 
         end
@@ -552,11 +627,52 @@ function compute_mean_all(trivecs, oxy)
     return mean_trivecs
 end
 
-function histogram_trivecs!(counts, data, bins, dbins, min_dist::Dict{Int, Vector{Float64}}=Dict{Int, Vector{Float64}}())
+function reset_statistics!(per_frame, solute_flag)
 
-    if typeof(counts) == Vector{Float64}    
+    if typeof(per_frame.p1) == Float64
+        per_frame.p1 = 0.0
+        per_frame.p2 = 0.0
+        per_frame.p3 = 0.0
+        per_frame.p4 = 0.0
+        per_frame.all = 0.0
+    else
+        per_frame.p1 .= 0.0
+        per_frame.p2 .= 0.0
+        per_frame.p3 .= 0.0
+        per_frame.p4 .= 0.0
+        per_frame.all .= 0.0
+    end
+
+    return per_frame
+
+end
+
+function update_totals!(total, per_frame)
+
+    if typeof(total.p1) == Float64
+        total.p1 += per_frame.p1
+        total.p2 += per_frame.p2
+        total.p3 += per_frame.p3
+        total.p4 += per_frame.p4
+        total.all += per_frame.all
+    else
+        total.p1 .+= per_frame.p1
+        total.p2 .+= per_frame.p2
+        total.p3 .+= per_frame.p3
+        total.p4 .+= per_frame.p4
+        total.all .+= per_frame.all
+    end
     
-        if typeof(data) == Dict{Int64, Float64}
+    return total
+
+end
+
+function histogram_trivecs!(data, sum, counts, bins, dbins, min_dist, 
+    solute_flag, mean_flag)
+
+    if !solute_flag
+    
+        if mean_flag
             @inbounds for (k, x) in data
                 # Only consider x within the histogram range.
                 if x >= bins[1] && x <= bins[end]
@@ -567,9 +683,10 @@ function histogram_trivecs!(counts, data, bins, dbins, min_dist::Dict{Int, Vecto
                         i -= 1
                     end
                     counts[i] += 1
+                    sum += x
                 end
             end
-        elseif typeof(data) == Dict{Int64, Vector{Float64}}
+        elseif !mean_flag
             @inbounds for (k, x) in data
                 for xi in x
                     # Only consider x within the histogram range.
@@ -581,20 +698,24 @@ function histogram_trivecs!(counts, data, bins, dbins, min_dist::Dict{Int, Vecto
                             i -= 1
                         end                        
                         counts[i] += 1
+                        sum += xi
                     end
                 end
             end
         end
 
-    elseif typeof(counts) == Matrix{Float64}
+    elseif solute_flag
 
-        if typeof(data) == Dict{Int64, Float64}
+        if mean_flag
             @inbounds for (k, x) in data
+
+                dist = min_dist[k].dist
+
                 # Only consider x within the histogram range.
-                if x >= bins[1] && x <= bins[end] && min_dist[k][1] >= dbins[1] && min_dist[k][1] <= dbins[end]
+                if x >= bins[1] && x <= bins[end] && dist >= dbins[1] && dist <= dbins[end]
                     # Find the last index where bins[i] is less than or equal to x.
                     i = searchsortedlast(bins, x)
-                    j = searchsortedlast(dbins, min_dist[k][1])
+                    j = searchsortedlast(dbins, dist)
                     # If x equals the last bin edge, assign it to the final bin.
                     if i == length(bins)
                         i -= 1
@@ -603,16 +724,20 @@ function histogram_trivecs!(counts, data, bins, dbins, min_dist::Dict{Int, Vecto
                         j -= 1
                     end
                     counts[i,j] += 1
+                    sum[j] += x
                 end
             end
-        elseif typeof(data) == Dict{Int64, Vector{Float64}}
+        elseif !mean_flag
             @inbounds for (k, x) in data
+
+                dist = min_dist[k].dist
+
                 for xi in x
                     # Only consider x within the histogram range.
-                    if xi >= bins[1] && xi <= bins[end] && min_dist[k][1] >= dbins[1] && min_dist[k][1] <= dbins[end]
+                    if xi >= bins[1] && xi <= bins[end] && dist >= dbins[1] && dist <= dbins[end]
                         # Find the last index where bins[i] is less than or equal to x.
                         i = searchsortedlast(bins, xi)
-                        j = searchsortedlast(dbins, min_dist[k][1])
+                        j = searchsortedlast(dbins, dist)
                         # If x equals the last bin edge, assign it to the final bin.
                         if i == length(bins)
                             i -= 1
@@ -621,6 +746,7 @@ function histogram_trivecs!(counts, data, bins, dbins, min_dist::Dict{Int, Vecto
                             j -= 1
                         end
                         counts[i,j] += 1
+                        sum[j] += xi
                     end
                 end
             end
@@ -630,9 +756,9 @@ function histogram_trivecs!(counts, data, bins, dbins, min_dist::Dict{Int, Vecto
 
 end
 
-function histogram_chain_participation!(counts, data, bins, dbins, min_dist::Dict{Int, Vector{Float64}}=Dict{Int, Vector{Float64}}())
+function histogram_chain_participation!(data, counts, bins, dbins, min_dist, solute_flag)
 
-    if typeof(counts) == Vector{Float64}    
+    if !solute_flag
         @inbounds for (k, x) in data
             n_chains = length(x)
             # Only consider x within the histogram range.
@@ -646,14 +772,15 @@ function histogram_chain_participation!(counts, data, bins, dbins, min_dist::Dic
                 counts[i] += 1
             end
         end
-    elseif typeof(counts) == Matrix{Float64}        
+    elseif solute_flag
         @inbounds for (k, x) in data
             n_chains = length(x)
+            dist = min_dist[k].dist
             # Only consider x within the histogram range.
-            if n_chains >= bins[1] && n_chains <= bins[end] && min_dist[k][1] >= dbins[1] && min_dist[k][1] <= dbins[end]
+            if n_chains >= bins[1] && n_chains <= bins[end] && dist >= dbins[1] && dist <= dbins[end]
                 # Find the last index where bins[i] is less than or equal to x.
                 i = searchsortedlast(bins, n_chains)
-                j = searchsortedlast(dbins, min_dist[k][1])
+                j = searchsortedlast(dbins, dist)
                 # If x equals the last bin edge, assign it to the final bin.
                 if i == length(bins)
                     i -= 1
@@ -671,69 +798,76 @@ end
 
 function write_chains!(chain_info, f, trivecs, min_dist, chains, params, output)
 
-    for (i, d) in min_dist
-        if d[1] <= params.dOO
-            if haskey(chains.p1, i)
-                for (c, chain) in enumerate(chains.p1[i])
-                    oxy1 = chain[1].donor
-                    oxy2 = chain[2].donor
-                    oxy3 = chain[3].donor
-                    oxy4 = chain[3].acceptor
-                    trivec = round(trivecs.p1[i][c], digits=4)
-                    dist = round(d[1], digits=4)
-                    if haskey(chain_info.p1, f)
-                        push!(chain_info.p1[f], [trivec, dist, oxy1, oxy2, oxy3, oxy4])
-                    else
-                        chain_info.p1[f] = [[trivec, dist, oxy1, oxy2, oxy3, oxy4]]
-                    end
-                    
+    for (i, v) in min_dist
+        if v.dist <= params.dOO
+            
+            for (c, chain) in enumerate(chains.p1[i])
+                oxy1 = chain[1].donor
+                oxy2 = chain[2].donor
+                oxy3 = chain[3].donor
+                oxy4 = chain[3].acceptor
+                trivec = trivecs.p1[i][c]
+                dist = v.dist
+                sol = v.sol                
+                if haskey(chain_info.p1, f)
+                    push!(chain_info.p1[f], Chains(oxy1, oxy2, oxy3, oxy4, dist, sol, trivec))
+                else
+                    chain_info.p1[f] = [Chains(oxy1, oxy2, oxy3, oxy4, dist, sol, trivec)]
                 end
+                
             end
-            if haskey(chains.p2, i)
-                for (c, chain) in enumerate(chains.p2[i])
-                    oxy1 = chain[1].donor
-                    oxy2 = chain[2].donor
-                    oxy3 = chain[3].donor
-                    oxy4 = chain[3].acceptor
-                    trivec = round(trivecs.p2[i][c], digits=4)
-                    dist = round(d[1], digits=4)
-                    if haskey(chain_info.p2, f)
-                        push!(chain_info.p2[f], [trivec, dist, oxy1, oxy2, oxy3, oxy4])
-                    else
-                        chain_info.p2[f] = [[trivec, dist, oxy1, oxy2, oxy3, oxy4]]
-                    end
+            
+            
+            for (c, chain) in enumerate(chains.p2[i])
+                oxy1 = chain[1].donor
+                oxy2 = chain[2].donor
+                oxy3 = chain[3].donor
+                oxy4 = chain[3].acceptor
+                trivec = trivecs.p2[i][c]
+                dist = v.dist
+                sol = v.sol 
+                if haskey(chain_info.p2, f)
+                    push!(chain_info.p2[f], Chains(oxy1, oxy2, oxy3, oxy4, dist, sol, trivec))
+                else
+                    chain_info.p2[f] = [Chains(oxy1, oxy2, oxy3, oxy4, dist, sol, trivec)]
                 end
+            
             end
-            if haskey(chains.p3, i)
-                for (c, chain) in enumerate(chains.p3[i])
-                    oxy1 = chain[1].donor
-                    oxy2 = chain[2].donor
-                    oxy3 = chain[3].donor
-                    oxy4 = chain[3].acceptor
-                    trivec = round(trivecs.p3[i][c], digits=4)
-                    dist = round(d[1], digits=4)
-                    if haskey(chain_info.p3, f)
-                        push!(chain_info.p3[f], [trivec, dist, oxy1, oxy2, oxy3, oxy4])
-                    else
-                        chain_info.p3[f] = [[trivec, dist, oxy1, oxy2, oxy3, oxy4]]
-                    end
+            
+            
+            for (c, chain) in enumerate(chains.p3[i])
+                oxy1 = chain[1].donor
+                oxy2 = chain[2].donor
+                oxy3 = chain[3].donor
+                oxy4 = chain[3].acceptor
+                trivec = trivecs.p3[i][c]
+                dist = v.dist
+                sol = v.sol 
+                if haskey(chain_info.p3, f)
+                    push!(chain_info.p3[f], Chains(oxy1, oxy2, oxy3, oxy4, dist, sol, trivec))
+                else
+                    chain_info.p3[f] = [Chains(oxy1, oxy2, oxy3, oxy4, dist, sol, trivec)]
                 end
+                
             end
-            if haskey(chains.p4, i)
-                for (c, chain) in enumerate(chains.p4[i])
-                    oxy1 = chain[1].donor
-                    oxy2 = chain[2].donor
-                    oxy3 = chain[3].donor
-                    oxy4 = chain[3].acceptor
-                    trivec = round(trivecs.p4[i][c], digits=4)
-                    dist = round(d[1], digits=4)
-                    if haskey(chain_info.p4, f)
-                        push!(chain_info.p4[f], [trivec, dist, oxy1, oxy2, oxy3, oxy4])
-                    else
-                        chain_info.p4[f] = [[trivec, dist, oxy1, oxy2, oxy3, oxy4]]
-                    end
+            
+            
+            for (c, chain) in enumerate(chains.p4[i])
+                oxy1 = chain[1].donor
+                oxy2 = chain[2].donor
+                oxy3 = chain[3].donor
+                oxy4 = chain[3].acceptor
+                trivec = trivecs.p4[i][c]
+                dist = v.dist
+                sol = v.sol 
+                if haskey(chain_info.p4, f)
+                    push!(chain_info.p4[f], Chains(oxy1, oxy2, oxy3, oxy4, dist, sol, trivec))
+                else
+                    chain_info.p4[f] = [Chains(oxy1, oxy2, oxy3, oxy4, dist, sol, trivec)]
                 end
+                
             end
+            
         end
     end
 
@@ -750,6 +884,37 @@ function write_chains!(chain_info, f, trivecs, min_dist, chains, params, output)
         serialize(io, chain_info.p4)
     end
     
+end
+
+function write_trivec_frame!(trivec_sum_frame, trivec_hist_frame, 
+    mean_trivec_sum_frame, mean_trivec_hist_frame, output)
+
+    open(joinpath(output,"p1_trivec.bin"), "a") do io
+        serialize(io, trivec_sum_frame.p1./vec(sum(trivec_hist_frame.p1, dims=1)))
+    end
+    open(joinpath(output,"p2_trivec.bin"), "a") do io
+        serialize(io, trivec_sum_frame.p2./vec(sum(trivec_hist_frame.p2, dims=1)))
+    end
+    open(joinpath(output,"p3_trivec.bin"), "a") do io
+        serialize(io, trivec_sum_frame.p3./vec(sum(trivec_hist_frame.p3, dims=1)))
+    end
+    open(joinpath(output,"p4_trivec.bin"), "a") do io
+        serialize(io, trivec_sum_frame.p4./vec(sum(trivec_hist_frame.p4, dims=1)))
+    end
+
+    open(joinpath(output,"p1_mean_trivec.bin"), "a") do io
+        serialize(io, mean_trivec_sum_frame.p1./vec(sum(mean_trivec_hist_frame.p1, dims=1)))
+    end
+    open(joinpath(output,"p2_mean_trivec.bin"), "a") do io
+        serialize(io, mean_trivec_sum_frame.p2./vec(sum(mean_trivec_hist_frame.p2, dims=1)))
+    end
+    open(joinpath(output,"p3_mean_trivec.bin"), "a") do io
+        serialize(io, mean_trivec_sum_frame.p3./vec(sum(mean_trivec_hist_frame.p3, dims=1)))
+    end
+    open(joinpath(output,"p4_mean_trivec.bin"), "a") do io
+        serialize(io, mean_trivec_sum_frame.p4./vec(sum(mean_trivec_hist_frame.p4, dims=1)))
+    end
+
 end
 
 function shift_position!(pos, location, i)

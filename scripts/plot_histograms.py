@@ -21,7 +21,7 @@ def plot_chi_water(chi_w, bins_center, norm, results_dir, output_file, mean=Fals
     #plt.ylim(0, 5)
     plt.xlim(-1, 1)
     if mean == True:
-        plt.xlabel(r'$\langle \chi \rangle$')
+        plt.xlabel(r'$\overline{\chi}$')
     else:
         plt.xlabel(r'$\chi$')
     plt.ylabel('Probability')
@@ -65,7 +65,7 @@ def plot_chain_water(chains_w, bins_center, norm, results_dir, output_file):
     fig.savefig(os.path.join(results_dir, output_file))
 
 # %%
-def plot_chi_enantiomers(chi_r, norm_r, chi_s, norm_s, chi_w, norm_w, 
+def plot_chi_enantiomers(chi_r, norm_r, chi_r_avg, chi_s, norm_s, chi_s_avg, chi_w, norm_w, 
                      bins_center, pos, results_dir, output_title, output_file, mean=False):
     
     if mean == True:
@@ -93,6 +93,12 @@ def plot_chi_enantiomers(chi_r, norm_r, chi_s, norm_s, chi_w, norm_w,
         ax[R[p]].plot(bins_center, chi_r[p,:,d] / norm_r[p,d], color = 'C0', label='$0.0 < d < 3.5$')
         ax[S[p]].plot(bins_center, chi_s[p,:,d] / norm_s[p,d], color = 'C0', label='$0.0 < d < 3.5$')
 
+        ax[R[p]].text(0.3, 0.2, 'avg: {:.6f}'.format(chi_r_avg[p, 0]), transform=ax[R[p]].transAxes, fontsize=8, color='C0')
+        ax[S[p]].text(0.3, 0.2, 'avg: {:.6f}'.format(chi_s_avg[p, 0]), transform=ax[S[p]].transAxes, fontsize=8, color='C0')
+
+        ax[R[p]].text(0.3, 0.1, 'avg: {:.6f}'.format(chi_r_avg[p, 1]), transform=ax[R[p]].transAxes, fontsize=8, color='C1')
+        ax[S[p]].text(0.3, 0.1, 'avg: {:.6f}'.format(chi_s_avg[p, 1]), transform=ax[S[p]].transAxes, fontsize=8, color='C1')
+
         r_title = 'R-' + output_title + ', ' + pos[p]
         s_title = 'S-' + output_title + ', ' + pos[p]
         ax[R[p]].set_title(r_title)
@@ -103,7 +109,7 @@ def plot_chi_enantiomers(chi_r, norm_r, chi_s, norm_s, chi_w, norm_w,
         #a.set_ylim(0, 5)
         
         if mean == True:
-            if i >= bottom: a.set_xlabel(r'$\langle \chi \rangle$')
+            if i >= bottom: a.set_xlabel(r'$\overline{\chi}$')
             a.set_xlim(-0.5, 0.5)
         else:
             if i >= bottom: a.set_xlabel(r'$\chi$')
@@ -113,7 +119,7 @@ def plot_chi_enantiomers(chi_r, norm_r, chi_s, norm_s, chi_w, norm_w,
             a.set_ylabel('Probability')
         a.grid()
 
-    ax[1].legend()
+    ax[1].legend(loc='center')
     plt.tight_layout()
     plt.savefig(os.path.join(results_dir, output_file))
 
@@ -183,22 +189,32 @@ dbins_center = (dbins[1:] + dbins[:-1]) / 2
 cbins = np.arange(0, 20, 1)
 
 # %%
-prefix = 'trivec_hist'
-mean_flag = False
+mean_flag = True
+
+# %%
+if mean_flag == True:
+    prefix_hist = 'mean_trivec_hist'
+    prefix_avg = 'mean_trivec_time_avg'
+elif mean_flag == False:
+    prefix_hist = 'trivec_hist'
+    prefix_avg = 'trivec_time_avg'
+
 
 # %%
 # Load data
-results_dir = '/home/dsuvlu/git/enantiomers/results/water/'
+results_dir = '/home/dsuvlu/git/enantiomers/results/water/10ns/'
 
-chi_w = np.loadtxt(os.path.join(results_dir, prefix+'.dat'))
+chi_w = np.loadtxt(os.path.join(results_dir, prefix_hist+'.dat'))
 norm_chi_w = np.sum(chi_w, axis=0)*dchi
 
 chains_w = np.loadtxt(os.path.join(results_dir, 'chain_hist.dat'))
 norm_chain_w = np.sum(chains_w, axis=0)
 
+chi_w_avg = np.loadtxt(os.path.join(results_dir, prefix_avg+'.dat'))
+
 
 # %%
-plot_chi_water(chi_w, dbins_center, norm_chi_w, results_dir, prefix+'.png', mean=mean_flag)
+plot_chi_water(chi_w, dbins_center, norm_chi_w, results_dir, prefix_hist+'.png', mean=mean_flag)
 plot_chain_water(chains_w, cbins, norm_chain_w, results_dir, 'chain_hist.png')
 
 
@@ -211,19 +227,30 @@ pos = ['p1', 'p2', 'p3', 'p4', 'all']
 
 output_title = ['alanine', '2-butanol', 'lactic_acid']
 
+direc = [0, 1, 2]
 
 # %%
-for d in range(3):
-    r_files = natsorted(glob.glob(os.path.join(results_dir[d], 'r/'+prefix+'*.dat')))
-    r_files = r_files[1:] + r_files[:1]
-    s_files = natsorted(glob.glob(os.path.join(results_dir[d], 's/'+prefix+'*.dat')))
-    s_files = s_files[1:] + s_files[:1]
+for d in direc:
+    r_files = natsorted(glob.glob(os.path.join(results_dir[d], 'r/1000ns/'+prefix_hist+'*.dat')))
+    s_files = natsorted(glob.glob(os.path.join(results_dir[d], 's/1000ns/'+prefix_hist+'*.dat')))
+    if mean_flag == True:
+        r_files = r_files[1:] + r_files[:1]
+        s_files = s_files[1:] + s_files[:1]
 
     chi_r = load_data(r_files)
     chi_s = load_data(s_files)
 
-    r_files = natsorted(glob.glob(os.path.join(results_dir[d], 'r/chain_hist_*.dat')))
-    s_files = natsorted(glob.glob(os.path.join(results_dir[d], 's/chain_hist_*.dat')))
+    r_files = natsorted(glob.glob(os.path.join(results_dir[d], 'r/1000ns/'+prefix_avg+'*.dat')))
+    s_files = natsorted(glob.glob(os.path.join(results_dir[d], 's/1000ns/'+prefix_avg+'*.dat')))
+    if mean_flag == True:
+        r_files = r_files[1:] + r_files[:1]
+        s_files = s_files[1:] + s_files[:1]
+
+    chi_r_avg = load_data(r_files)
+    chi_s_avg = load_data(s_files)
+
+    r_files = natsorted(glob.glob(os.path.join(results_dir[d], 'r/1000ns/chain_hist_*.dat')))
+    s_files = natsorted(glob.glob(os.path.join(results_dir[d], 's/1000ns/chain_hist_*.dat')))
 
     chains_r = load_data(r_files)
     chains_s = load_data(s_files)
@@ -236,9 +263,9 @@ for d in range(3):
     norm_r = np.array([np.sum(chi_r[i,:,:], axis=0)*dchi for i in range(n)])
     norm_s = np.array([np.sum(chi_s[i,:,:], axis=0)*dchi for i in range(n)])
 
-    plot_chi_enantiomers(chi_r, norm_r, chi_s, norm_s, chi_w, norm_chi_w, 
+    plot_chi_enantiomers(chi_r, norm_r, chi_r_avg, chi_s, norm_s, chi_s_avg, chi_w, norm_chi_w, 
                      dbins_center, pos, results_dir[d], output_title[d], 
-                     output_file=prefix+'.png', mean=mean_flag)
+                     output_file=prefix_hist+'.png', mean=mean_flag)
     
     norm_r = np.array([np.sum(chains_r[i,:,:], axis=0) for i in range(4)])
     norm_s = np.array([np.sum(chains_s[i,:,:], axis=0) for i in range(4)])

@@ -6,7 +6,7 @@ from openmm import unit
 # %%
 # Input Files
 
-pdb = PDBFile('s_alanine_water.pdb')
+pdb = PDBFile('r_alanine_water.pdb')
 forcefield = ForceField('amber14-all.xml', 'amber14/opc.xml')
 
 # %%
@@ -32,12 +32,12 @@ barostatInterval = 25
 steps = 500000000
 equilibrationSteps = 100000
 platform = Platform.getPlatformByName('CUDA')
-platformProperties = {'DeviceIndex':'3', 'Precision': 'mixed'}
-dcdReporter = DCDReporter('s_trajectory_1000ns.dcd', 500)
+platformProperties = {'DeviceIndex':'2', 'Precision': 'mixed'}
+dcdReporter = DCDReporter('r_trajectory_1000ns.dcd', 500)
 #pdbReporter = PDBReporter('r_trajectory.pdb', 500)
-dataReporter = StateDataReporter('s_log.txt', 1000, totalSteps=steps,
+dataReporter = StateDataReporter('r_log.txt', 1000, totalSteps=steps,
     step=True, speed=True, progress=True, potentialEnergy=True, temperature=True, separator='\t')
-checkpointReporter = CheckpointReporter('s_checkpoint.chk', 10000)
+checkpointReporter = CheckpointReporter('r_checkpoint.chk', 10000)
 
 # %%
 # Prepare the Simulation

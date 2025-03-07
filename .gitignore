@@ -1,2 +1,4 @@
 *.dcd
 *.chk
+*.bin
+*.npy
