@@ -15,8 +15,8 @@ p = ['p1', 'p2', 'p3', 'p4']
 
 
 # %%
-rdirectory = '/home/dsuvlu/git/enantiomers/results/alanine/r/1000ns/'
-sdirectory = '/home/dsuvlu/git/enantiomers/results/alanine/s/1000ns/'
+rdirectory = '/home/dsuvlu/git/enantiomers/results/lactic_acid/r/1000ns/'
+sdirectory = '/home/dsuvlu/git/enantiomers/results/lactic_acid/s/1000ns/'
 bins = np.linspace(-1, 1, 201)
 
 # %%
@@ -78,11 +78,11 @@ for a, file in enumerate(files):
     ax[a].set_xlabel(r'$\overline{\chi}$')
     ax[a].set_ylabel('Probability')
     ax[a].legend()
-    title = 'alanine, ' + p[a] + ', $0.0 < d < 3.5$'
+    title = 'lactic acid, ' + p[a] + ', $0.0 < d < 3.5$'
     ax[a].set_title(title)
 
 plt.tight_layout()
-plt.savefig('alanine.png')
+plt.savefig('lactic_acid.png')
 
 
 

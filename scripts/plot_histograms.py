@@ -189,7 +189,7 @@ dbins_center = (dbins[1:] + dbins[:-1]) / 2
 cbins = np.arange(0, 20, 1)
 
 # %%
-mean_flag = True
+mean_flag = False
 
 # %%
 if mean_flag == True:

@@ -77,25 +77,25 @@ function estimate(x::Vector{Float64})::NTuple{2, Float64}
     return (xm, σ)
 end
 
-using NPZ
+
 n_frames = 1000000
-directory = "/home/dsuvlu/git/enantiomers/results/alanine/s/1000ns/"
+directory = "/home/dsuvlu/git/enantiomers/results/lactic_acid/s/1000ns/"
 sdata = zeros(Float64, (10, n_frames))
-open(joinpath(directory, "p1_trivec.bin"), "r") do IO
+open(joinpath(directory, "p4_trivec.bin"), "r") do IO
     for f in 1:n_frames
         sdata[:,f] = deserialize(IO)
     end
 end
-NPZ.npzwrite(joinpath(directory, "p1_trivec.npy"), transpose(sdata))
+NPZ.npzwrite(joinpath(directory, "p4_trivec.npy"), transpose(sdata))
 
-directory = "/home/dsuvlu/git/enantiomers/results/alanine/r/1000ns/"
+directory = "/home/dsuvlu/git/enantiomers/results/lactic_acid/r/1000ns/"
 rdata = zeros(Float64, (10, n_frames))
-open(joinpath(directory, "p1_trivec.bin"), "r") do IO
+open(joinpath(directory, "p4_trivec.bin"), "r") do IO
     for f in 1:n_frames
         rdata[:,f] = deserialize(IO)
     end
 end
-NPZ.npzwrite(joinpath(directory, "p1_trivec.npy"), transpose(rdata))
+NPZ.npzwrite(joinpath(directory, "p4_trivec.npy"), transpose(rdata))
 
 estimate(filter(!isnan, sdata[1,:]))
 mean(filter(!isnan, sdata[1,:]))

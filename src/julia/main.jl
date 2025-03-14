@@ -41,6 +41,14 @@ struct Neighbors
     dist::Float64
 end
 
+struct HBSites
+    index::Int
+    type::String
+    donor::Bool
+    acceptor::Bool
+    hydrogen::Int
+end
+
 struct HBond
     donor::Int
     hydrogen::Int
@@ -304,6 +312,47 @@ function minimum_distance!(min_dist, pos, ucell, oxy, solute, sol_dist)
         min_dist[i] = Dist(min_pair[1], min_pair[2])
     end
     return min_dist
+end
+
+function find_solute_hbonds!(sol_hbonds, sol_info, min_dist, params)
+
+    for (k,v) in min_dist
+        if v.dist <= params.dOO
+            
+            sol_i = v.sol
+            
+            if sol_info[sol_i].acceptor
+                o_j = k
+                h1_j = k + 1
+                h2_j = k + 2
+
+                # sol acceptor, water donor
+                angle1 = rad2deg(angle(frame, sol_i, o_j, h1_j))
+                angle2 = rad2deg(angle(frame, sol_i, o_j, h2_j))
+
+                if angle1 < params.angle
+                    push!(sol_hbonds[sol_i], HBond(o_j, h1_j, sol_i, angle1, v.dist))
+                elseif angle2 < params.angle
+                    push!(sol_hbonds[sol_i], HBond(o_j, h2_j, sol_i, angle2, v.dist))
+                end
+
+            end
+
+            if sol_info[sol_i].donor
+                o_j = k
+                sol_h = sol_info[sol_i].hydrogen
+
+                # sol donor, water acceptor
+                angle0 = rad2deg(angle(frame, o_j, sol_i, sol_h))
+
+                if angle0 < params.angle
+                    push!(sol_hbonds[sol_i], HBond(sol_i, sol_h, o_j, angle0, v.dist))
+                end
+
+            end
+
+        end
+    end
 end
 
 function find_neighbors!(nhbs, oxy, n_o, pos, params, ucell)
@@ -886,6 +935,12 @@ function write_chains!(chain_info, f, trivecs, min_dist, chains, params, output)
     
 end
 
+function write_solute_hbonds!(sol_hbonds, f, output)
+    open(joinpath(output,"sol_hbonds.bin"), "a") do io
+        serialize(io, [f sol_hbonds])
+    end
+end
+
 function write_trivec_frame!(trivec_sum_frame, trivec_hist_frame, 
     mean_trivec_sum_frame, mean_trivec_hist_frame, output)
 
@@ -914,6 +969,44 @@ function write_trivec_frame!(trivec_sum_frame, trivec_hist_frame,
     open(joinpath(output,"p4_mean_trivec.bin"), "a") do io
         serialize(io, mean_trivec_sum_frame.p4./vec(sum(mean_trivec_hist_frame.p4, dims=1)))
     end
+
+end
+
+function solute_donors_acceptors(frame, solute)
+
+    sol_info = Dict{Int, HBSites}()
+
+    top = Topology(frame)
+    bond = Int.(bonds(top))
+    sel_all_solute = Selection("not resname HOH")
+    all_solute = Int.(Chemfiles.evaluate(sel_all_solute, frame))
+    
+    for col in eachcol(bond)
+
+        a = col[1]
+        b = col[2]
+        a_name = name(Atom(frame, a))
+        a_type = type(Atom(frame, a))
+        b_name = name(Atom(frame, b))
+        b_type = type(Atom(frame, b))
+        if a in solute && b_type == "H"
+            println("Bond between $a_name, $a_type, $a and $b_name, $b_type, $b")
+            if a_type == "N"
+                sol_info[a] = HBSites(a, a_type, true, false, b)
+            elseif a_type == "O"
+                sol_info[a] = HBSites(a, a_type, true, true, b)
+            end
+        end
+    end
+
+    for k in solute
+        if !haskey(sol_info, k)
+            k_type = type(Atom(frame, k))
+            sol_info[k] = HBSites(k, k_type, false, true, 0)
+        end
+    end
+
+    return sol_info
 
 end
 
