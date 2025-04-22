@@ -9,11 +9,11 @@ using Statistics
 using BlockingMethod
 
 # include functions
-include("/home/dsuvlu/git/enantiomers/src/julia/main.jl")
+include("/mnt/hdb/Research_Data/enantiomers/src/julia/main.jl")
 
-directory = "/home/dsuvlu/git/enantiomers/data/2-butanol/"
-r_output = "/home/dsuvlu/git/enantiomers/results/2-butanol/r/1000ns/"
-s_output = "/home/dsuvlu/git/enantiomers/results/2-butanol/s/1000ns/"
+directory = "/mnt/hdb/Research_Data/enantiomers/data/alanine/"
+r_output = "/mnt/hdb/Research_Data/enantiomers/results/alanine/r/280K/1000ns/"
+s_output = "/mnt/hdb/Research_Data/enantiomers/results/alanine/s/280K/1000ns/"
 
 r_chain_info = ChainList(Dict{Int, Vector{Chains}}(), Dict{Int, Vector{Chains}}(),
         Dict{Int, Vector{Chains}}(), Dict{Int, Vector{Chains}}())
@@ -216,7 +216,7 @@ histogram!(s_chi_p3, bins=101, normalize=:pdf, label="s-p3", xlabel="χ", ylabel
 histogram!(r_chi_p4, bins=101, normalize=:pdf, label="r-p4", xlabel="χ", ylabel="Frequency", title="Chi distribution")
 histogram!(s_chi_p4, bins=101, normalize=:pdf, label="s-p4", xlabel="χ", ylabel="Frequency", title="Chi distribution")
 
-savefig("2-butanol_chi.pdf")
+savefig("alanine_chi_2000ns.pdf")
 
 file = "sol_hbonds.bin"
 r_hbonds = []
@@ -228,7 +228,7 @@ end
 
 r_nhbonds = Int[]
 for hbonds in r_hbonds
-    push!(r_nhbonds, length(hbonds[2][3]))
+    push!(r_nhbonds, length(hbonds[2][15]))
 end
 mean(r_nhbonds)
 estimate(Float64.(r_nhbonds))
@@ -242,7 +242,7 @@ end
 
 s_nhbonds = Int[]
 for hbonds in s_hbonds
-    push!(s_nhbonds, length(hbonds[2][3]))
+    push!(s_nhbonds, length(hbonds[2][15]))
 end
 mean(s_nhbonds)
 estimate(Float64.(s_nhbonds))

@@ -8,7 +8,7 @@ using ArgParse # for parsing command line arguments
 using Serialization # for saving data structures to binary files
 
 # include functions
-include("/home/dsuvlu/git/enantiomers/src/julia/main.jl")
+include("/mnt/hdb/Research_Data/enantiomers/src/julia/main.jl")
 
 args = parse_command_line()
 directory = args["directory"]

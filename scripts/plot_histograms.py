@@ -202,7 +202,7 @@ elif mean_flag == False:
 
 # %%
 # Load data
-results_dir = '/home/dsuvlu/git/enantiomers/results/water/10ns/'
+results_dir = '/mnt/hdb/Research_Data/enantiomers/results/water/10ns/'
 
 chi_w = np.loadtxt(os.path.join(results_dir, prefix_hist+'.dat'))
 norm_chi_w = np.sum(chi_w, axis=0)*dchi
@@ -219,9 +219,9 @@ plot_chain_water(chains_w, cbins, norm_chain_w, results_dir, 'chain_hist.png')
 
 
 # %%
-results_dir = ['/home/dsuvlu/git/enantiomers/results/alanine/',
-                '/home/dsuvlu/git/enantiomers/results/2-butanol/',
-                '/home/dsuvlu/git/enantiomers/results/lactic_acid/']
+results_dir = ['/mnt/hdb/Research_Data/enantiomers/results/alanine/',
+                '/mnt/hdb/Research_Data/enantiomers/results/2-butanol/',
+                '/mnt/hdb/Research_Data/enantiomers/results/lactic_acid/']
 
 pos = ['p1', 'p2', 'p3', 'p4', 'all']
 
